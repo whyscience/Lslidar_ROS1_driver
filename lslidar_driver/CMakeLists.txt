@@ -26,8 +26,8 @@ catkin_package(
     roscpp diagnostic_updater nodelet
     pcl_ros pcl_conversions
     lslidar_msgs
-  DEPENDS
-    boost
+#  DEPENDS
+#    boost
 )
 
 include_directories(

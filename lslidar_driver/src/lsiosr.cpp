@@ -383,6 +383,7 @@ int LSIOSR::init()
 int LSIOSR::close()
 {
   ::close(fd_);
+  return 0;
 }
 
 std::string LSIOSR::getPort()
