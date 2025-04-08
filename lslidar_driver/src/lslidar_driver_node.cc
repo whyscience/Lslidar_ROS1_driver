@@ -15,34 +15,28 @@
  * along with the driver.	If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <ros/ros.h>
 #include <lslidar_driver/lslidar_driver.h>
+#include <ros/ros.h>
 
 volatile sig_atomic_t flag = 1;
 
-static void my_handler(int sig)
-{
-	flag = 0;
-}
+static void my_handler(int sig) { flag = 0; }
 
+int main(int argc, char **argv) {
+  ros::init(argc, argv, "lslidar_driver_node");
+  ros::NodeHandle node;
+  ros::NodeHandle private_nh("~");
 
-int main(int argc, char** argv)
-{
-		ros::init(argc, argv, "lslidar_driver_node");
-		ros::NodeHandle node;
-		ros::NodeHandle private_nh("~");
+  // start the driver
+  lslidar_driver::LslidarDriver driver(node, private_nh);
+  if (!driver.initialize()) {
+    ROS_ERROR("Cannot initialize lslidar driver...");
+    return 0;
+  }
+  // loop until shut down or end of file
+  while (ros::ok() && driver.polling()) {
+    ros::spinOnce();
+  }
 
-		// start the driver
-		lslidar_driver::LslidarDriver driver(node, private_nh);
-	if (!driver.initialize()) {
-		ROS_ERROR("Cannot initialize lslidar driver...");
-		return 0;
-	}
-		// loop until shut down or end of file
-		while(ros::ok() && driver.polling()) {
-				ros::spinOnce();
-
-		}
-
-		return 0;
+  return 0;
 }

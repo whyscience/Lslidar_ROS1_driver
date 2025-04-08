@@ -18,139 +18,140 @@
 #ifndef LSLIDAR_DRIVER_H
 #define LSLIDAR_DRIVER_H
 
-#include <unistd.h>
-#include <stdio.h>
-#include <netinet/in.h>
-#include <string>
 #include "input.h"
+#include <netinet/in.h>
+#include <stdio.h>
+#include <string>
+#include <unistd.h>
 
-#include <boost/shared_ptr.hpp>
+#include "lsiosr.h"
 #include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/shared_ptr.hpp>
 #include <boost/thread.hpp>
-#include <ros/ros.h>
 #include <diagnostic_updater/diagnostic_updater.h>
 #include <diagnostic_updater/publisher.h>
-#include "lsiosr.h"
+#include <ros/ros.h>
 #include <sensor_msgs/LaserScan.h>
 
+#include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl_ros/point_cloud.h>
-#include <pcl/point_types.h>
 
 #include <lslidar_msgs/LslidarPacket.h>
 #include <std_msgs/Byte.h>
 namespace lslidar_driver {
 
 struct PointXYZIT {
-    PCL_ADD_POINT4D;
-    uint8_t intensity;
-    double timestamp;
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW  // make sure our new allocators are aligned
+  PCL_ADD_POINT4D;
+  uint8_t intensity;
+  double timestamp;
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW // make sure our new allocators are aligned
 } EIGEN_ALIGN16;
 
 typedef struct {
-    double degree;
-    double range;
-    double intensity;
+  double degree;
+  double range;
+  double intensity;
 } ScanPoint;
 
-uint16_t PACKET_SIZE ;
+uint16_t PACKET_SIZE;
 
 class LslidarDriver {
 public:
+  LslidarDriver(ros::NodeHandle &n, ros::NodeHandle &pn);
+  ~LslidarDriver();
 
-    LslidarDriver(ros::NodeHandle& n, ros::NodeHandle& pn);
-    ~LslidarDriver();
+  bool initialize();
+  bool polling();
+  int getScan(std::vector<ScanPoint> &points, ros::Time &scan_time,
+              double &scan_duration);
+  void data_processing(unsigned char *packet_bytes, int len);
+  void data_processing_2(unsigned char *packet_bytes, int len);
+  void difop_processing(unsigned char *packet_bytes);
+  typedef boost::shared_ptr<LslidarDriver> LslidarDriverPtr;
+  typedef boost::shared_ptr<const LslidarDriver> LslidarDriverConstPtr;
+  void recvThread_crc(int &count_2, int &link_time);
 
-    bool initialize();
-    bool polling();
-    int getScan(std::vector<ScanPoint> &points, ros::Time &scan_time, double &scan_duration);
-    void data_processing(unsigned char *packet_bytes,int len);
-    void data_processing_2(unsigned char *packet_bytes,int len);
-    void difop_processing(unsigned char *packet_bytes);
-    typedef boost::shared_ptr<LslidarDriver> LslidarDriverPtr;
-    typedef boost::shared_ptr<const LslidarDriver> LslidarDriverConstPtr;
-    void recvThread_crc(int &count_2,int &link_time);
 private:
-    boost::mutex mutex_; 
-    boost::mutex pubscan_mutex_;
-    boost::condition_variable pubscan_cond_;
+  boost::mutex mutex_;
+  boost::mutex pubscan_mutex_;
+  boost::condition_variable pubscan_cond_;
 
-    boost::thread *recv_thread_;
-    boost::thread *pubscan_thread_ ;
-    bool createRosIO();
-    void close_serial();
-    void open_serial();
-    void pubScanThread();
-    void lidar_difop();
-    void lidar_order(const std_msgs::Int8 msg);
-    int receive_data(unsigned char *packet_bytes);
-    void initParam();
-    uint8_t N10_CalCRC8(unsigned char * p, int len);
-    // Ethernet relate variables
-    int UDP_PORT_NUMBER;
-	bool is_start;
-    // ROS related variables
-    LSIOSR * serial_;
-    std::string serial_port_;
-    ros::NodeHandle nh;
-    ros::NodeHandle pnh;
-    std::string  interface_selection;
-    boost::shared_ptr<Input> msop_input_;
-    ros::Publisher packet_pub;
-	ros::Publisher pointcloud_pub;
+  boost::thread *recv_thread_;
+  boost::thread *pubscan_thread_;
+  bool createRosIO();
+  void close_serial();
+  void open_serial();
+  void pubScanThread();
+  void lidar_difop();
+  void lidar_order(const std_msgs::Int8 msg);
+  int receive_data(unsigned char *packet_bytes);
+  void initParam();
+  uint8_t N10_CalCRC8(unsigned char *p, int len);
+  // Ethernet relate variables
+  int UDP_PORT_NUMBER;
+  bool is_start;
+  // ROS related variables
+  LSIOSR *serial_;
+  std::string serial_port_;
+  ros::NodeHandle nh;
+  ros::NodeHandle pnh;
+  std::string interface_selection;
+  boost::shared_ptr<Input> msop_input_;
+  ros::Publisher packet_pub;
+  ros::Publisher pointcloud_pub;
 
-	ros::Subscriber difop_switch;
-    // Diagnostics updater
-    diagnostic_updater::Updater diagnostics;
-    boost::shared_ptr<diagnostic_updater::TopicDiagnostic> diag_topic;
-    double diag_min_freq;
-    double diag_max_freq;
+  ros::Subscriber difop_switch;
+  // Diagnostics updater
+  diagnostic_updater::Updater diagnostics;
+  boost::shared_ptr<diagnostic_updater::TopicDiagnostic> diag_topic;
+  double diag_min_freq;
+  double diag_max_freq;
 
-    std::vector<ScanPoint> scan_points_;
-    std::vector<ScanPoint> scan_points_bak_;
-    std::string frame_id;
-    std::string lidar_name;
-    std::string scan_topic;
-    std::string dump_file;
-    std::string pointcloud_topic;
-    std::string in_file_name;
-    double min_range;
-    double max_range;
-    double angle_disable_min;
-    double angle_disable_max;
-    double angle_able_min;
-    double angle_able_max;
-    double degree_compensation = 0.0;
-    bool use_gps_ts;
-    bool high_reflection;
-    bool compensation;
-    bool first_compensation = true;
-    bool restart = true;
-    bool pubScan;
-    bool pubPointCloud2;
-    int count_num;
-    int package_points;
-    int data_bits_start;
-    int degree_bits_start;
-    int end_degree_bits_start;
-    int rpm_bits_start;
-	int baud_rate_;
-    int points_size_;
-    ros::Time pre_time_;
-    ros::Time time_;
-    ros::Publisher pub_;
-    tm pTime;    
-    uint64_t sub_second;
-    uint64_t get_gps_stamp(tm t);
-    uint64_t sweep_end_time_gps;
-    uint64_t sweep_end_time_hardware;
-    int idx = 0;
-    int link_time = 0;
-    double last_degree = 0.0;
+  std::vector<ScanPoint> scan_points_;
+  std::vector<ScanPoint> scan_points_bak_;
+  std::string frame_id;
+  std::string lidar_name;
+  std::string scan_topic;
+  std::string dump_file;
+  std::string pointcloud_topic;
+  std::string in_file_name;
+  double min_range;
+  double max_range;
+  double angle_disable_min;
+  double angle_disable_max;
+  double angle_able_min;
+  double angle_able_max;
+  double degree_compensation = 0.0;
+  bool use_gps_ts;
+  bool high_reflection;
+  bool compensation;
+  bool first_compensation = true;
+  bool restart = true;
+  bool pubScan;
+  bool pubPointCloud2;
+  int count_num;
+  int package_points;
+  int data_bits_start;
+  int degree_bits_start;
+  int end_degree_bits_start;
+  int rpm_bits_start;
+  int baud_rate_;
+  int points_size_;
+  ros::Time pre_time_;
+  ros::Time time_;
+  ros::Publisher pub_;
+  tm pTime;
+  uint64_t sub_second;
+  uint64_t get_gps_stamp(tm t);
+  uint64_t sweep_end_time_gps;
+  uint64_t sweep_end_time_hardware;
+  int idx = 0;
+  int link_time = 0;
+  double last_degree = 0.0;
 
-    double packet_timestamp;
-    double last_packet_timestamp;
+  double packet_timestamp;
+  double last_packet_timestamp;
 };
 
 typedef LslidarDriver::LslidarDriverPtr LslidarDriverPtr;
@@ -160,6 +161,6 @@ typedef pcl::PointCloud<VPoint> VPointCloud;
 } // namespace lslidar_driver
 POINT_CLOUD_REGISTER_POINT_STRUCT(lslidar_driver::PointXYZIT,
                                   (float, x, x)(float, y, y)(float, z, z)(
-                                          std::uint8_t, intensity,
-                                          intensity)(double, timestamp, timestamp))
+                                      std::uint8_t, intensity,
+                                      intensity)(double, timestamp, timestamp))
 #endif // _LSLIDAR__DRIVER_H_
