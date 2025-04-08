@@ -10,10 +10,6 @@ add_message_files(
   DIRECTORY msg
   FILES
   LslidarPacket.msg
-  LslidarPoint.msg
-  LslidarScan.msg
-  LslidarSweep.msg
-  LslidarDifop.msg
 )
 generate_messages(DEPENDENCIES std_msgs)
 
